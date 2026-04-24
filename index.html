@@ -21,7 +21,7 @@
         .btn-yellow { background: var(--mali-yellow); color: black; margin-top: 5px; }
         .hidden { display: none; }
         
-        /* Style de l'historique */
+        /* Style Historique */
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; }
         .history-item:last-child { border-bottom: none; }
         .hist-in { color: var(--mali-green); font-weight: bold; }
@@ -38,6 +38,8 @@
 
     <div id="auth-section" class="card">
         <h1 style="text-align:center; margin-bottom:5px;">🍍 Malicoin</h1>
+        <a href="admin.html" style="color: #ccc; text-decoration: none; font-size: 12px;">Accès Direction 🔐</a>
+
         <p style="text-align:center; color:#666; font-size:14px;">Le futur du Mali commence ici</p>
         <input type="tel" id="phone" placeholder="+223 70 00 00 00">
         <div id="recaptcha-container"></div>
@@ -61,7 +63,7 @@
             <h4>💸 Envoyer des MLC</h4>
             <input type="tel" id="dest-phone" placeholder="Numéro destinataire (+223...)">
             <input type="number" id="montant-transfert" placeholder="Montant">
-            <p style="color:var(--mali-red); font-weight:bold; font-size:12px;">Frais fixes : 25 MLC</p>
+            <p style="color:var(--mali-red); font-weight:bold; font-size:12px;">Frais : 25 MLC</p>
             <button class="btn-green" onclick="transfererMLC()">Confirmer l'envoi</button>
         </div>
 
@@ -115,23 +117,36 @@ const MON_NUMERO_ADMIN = "+22396804164";
 let confirmationResult;
 let premierChargement = true;
 
+// Initialisation Robuste du ReCaptcha
 window.onload = function() {
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {'size': 'invisible'});
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible'
+    });
 };
 
 function envoyerSMS() {
     const phone = document.getElementById('phone').value.trim();
-    if(!phone.startsWith('+')) return alert("Format requis: +223...");
+    if(!phone.startsWith('+223') || phone.length < 12) {
+        return alert("Utilisez le format complet : +22370000000");
+    }
+    
     auth.signInWithPhoneNumber(phone, window.recaptchaVerifier).then(result => {
         confirmationResult = result;
         document.getElementById('code-section').classList.remove('hidden');
         document.getElementById('btn-envoyer').classList.add('hidden');
-    }).catch(err => alert("Erreur: " + err.message));
+        alert("SMS envoyé !");
+    }).catch(err => {
+        alert("Erreur : " + err.message);
+        window.recaptchaVerifier.render().then(id => grecaptcha.reset(id));
+    });
 }
 
 function validerCode() {
     const code = document.getElementById('sms-code').value;
-    confirmationResult.confirm(code).then(res => { ouvrirApp(res.user.phoneNumber); }).catch(() => alert("Code incorrect"));
+    if(!code) return alert("Entrez le code");
+    confirmationResult.confirm(code).then(res => { 
+        ouvrirApp(res.user.phoneNumber); 
+    }).catch(() => alert("Code incorrect"));
 }
 
 function ouvrirApp(phone) {
@@ -139,54 +154,43 @@ function ouvrirApp(phone) {
     document.getElementById('app-section').classList.remove('hidden');
     document.getElementById('display-phone').innerText = phone;
 
-    // Suivi du solde
     db.ref('users/' + phone).on('value', snap => {
         let data = snap.val();
         if(!data) {
-            db.ref('users/' + phone).set({ phone: phone, solde: 500 });
+            db.ref('users/' + phone).set({ phone: phone, solde: 500, date: Date.now() });
             return;
         }
-        const affichageSolde = document.getElementById('solde-valeur');
-        const ancienSolde = parseInt(affichageSolde.innerText) || 0;
-        if (!premierChargement && data.solde > ancienSolde) {
-            alert("🔔 Reçu : +" + (data.solde - ancienSolde) + " MLC !");
+        const display = document.getElementById('solde-valeur');
+        const ancien = parseInt(display.innerText) || 0;
+        if (!premierChargement && data.solde > ancien) {
+            alert("🔔 Reçu : +" + (data.solde - ancien) + " MLC !");
         }
-        affichageSolde.innerText = data.solde;
+        display.innerText = data.solde;
         premierChargement = false;
     });
 
-    // Chargement de l'historique
     chargerHistorique(phone);
 }
 
 function chargerHistorique(phone) {
-    db.ref('transactions').on('value', snap => {
-        let h = "";
-        let vide = true;
+    db.ref('transactions').orderByChild('date').limitToLast(20).on('value', snap => {
+        let h = ""; let vide = true;
         const data = snap.val();
         if(data) {
-            // On trie pour avoir les plus récents en haut
-            const keys = Object.keys(data).reverse();
-            keys.forEach(key => {
+            Object.keys(data).reverse().forEach(key => {
                 const t = data[key];
                 if(t.expediteur === phone || t.destinataire === phone) {
                     vide = false;
-                    const date = new Date(t.date).toLocaleDateString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                    const date = new Date(t.date).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
                     const isRecu = t.destinataire === phone;
-                    h += `
-                    <div class="history-item">
-                        <div>
-                            <div style="font-weight:bold">${isRecu ? 'De: ' + t.expediteur : 'Vers: ' + t.destinataire}</div>
-                            <div class="hist-date">${date}</div>
-                        </div>
-                        <div class="${isRecu ? 'hist-in' : 'hist-out'}">
-                            ${isRecu ? '+' : '-'}${t.montant} MLC
-                        </div>
+                    h += `<div class="history-item">
+                        <div><b>${isRecu ? 'De: '+t.expediteur : 'Vers: '+t.destinataire}</b><br><small>${date}</small></div>
+                        <div class="${isRecu ? 'hist-in' : 'hist-out'}">${isRecu ? '+' : '-'}${t.montant}</div>
                     </div>`;
                 }
             });
         }
-        document.getElementById('historique-liste').innerHTML = vide ? '<p style="font-size:12px; color:#999; text-align:center;">Aucune transaction</p>' : h;
+        document.getElementById('historique-liste').innerHTML = vide ? '<p style="text-align:center;color:#999">Aucune transaction</p>' : h;
     });
 }
 
@@ -197,52 +201,54 @@ function transfererMLC() {
     const frais = 25;
     const total = montant + frais;
 
-    if(!dest.startsWith('+')) return alert("Numéro invalide");
+    if(dest === monPhone) return alert("Action impossible");
+    if(!dest.startsWith('+223')) return alert("Numéro +223 requis");
     if(isNaN(montant) || montant <= 0) return alert("Montant invalide");
 
-    db.ref('users/' + monPhone + '/solde').transaction(actuel => {
-        if (actuel >= total) {
-            // 1. Créditer le destinataire
-            db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
-            // 2. Créditer l'admin pour les frais
-            db.ref('users/' + MON_NUMERO_ADMIN + '/solde').transaction(s => (s || 0) + frais);
-            // 3. Enregistrer dans l'historique
-            db.ref('transactions').push({
-                expediteur: monPhone,
-                destinataire: dest,
-                montant: montant,
-                date: Date.now()
-            });
-            alert("✅ Envoyé !");
-            return actuel - total;
-        } else {
-            alert("❌ Solde insuffisant");
-            return;
-        }
+    db.ref('users/' + dest).once('value').then(snap => {
+        if(!snap.exists()) return alert("Cet utilisateur n'existe pas encore.");
+
+        db.ref('users/' + monPhone + '/solde').transaction(actuel => {
+            if (actuel >= total) {
+                db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
+                db.ref('users/' + MON_NUMERO_ADMIN + '/solde').transaction(s => (s || 0) + frais);
+                db.ref('transactions').push({ expediteur: monPhone, destinataire: dest, montant: montant, date: Date.now() });
+                alert("✅ Transfert réussi");
+                return actuel - total;
+            } else {
+                alert("❌ Solde insuffisant");
+                return;
+            }
+        });
     });
 }
 
 function demanderAchat() {
     const m = document.getElementById('montant-cfa').value;
     const r = document.getElementById('ref-cfa').value.trim();
-    const p = document.getElementById('display-phone').innerText;
-    if(!m || !r) return alert("Champs vides");
-    db.ref('demandes_achats').push({ utilisateur: p, montant: m, reference: r, statut: "en_attente", date: Date.now() });
+    if(!m || !r) return alert("Remplissez tout");
+    db.ref('demandes_achats').push({ 
+        utilisateur: document.getElementById('display-phone').innerText, 
+        montant: m, reference: r, statut: "en_attente", date: Date.now() 
+    });
     alert("🚀 Demande envoyée !");
 }
 
 async function soumettreTravail() {
     const f1 = document.getElementById('photo-avant').files[0];
     const f2 = document.getElementById('photo-apres').files[0];
-    const p = document.getElementById('display-phone').innerText;
-    if(!f1 || !f2) return alert("Photos manquantes");
+    if(!f1 || !f2) return alert("2 photos requises");
     const toB64 = f => new Promise(r => { const rd = new FileReader(); rd.readAsDataURL(f); rd.onload = () => r(rd.result); });
     try {
         const b1 = await toB64(f1); const b2 = await toB64(f2);
-        await db.ref('demandes_minage').push({ utilisateur: p, photo_avant: b1, photo_apres: b2, statut: "en_attente", timestamp: Date.now() });
-        alert("✅ Photos envoyées !");
+        await db.ref('demandes_minage').push({ 
+            utilisateur: document.getElementById('display-phone').innerText, 
+            photo_avant: b1, photo_apres: b2, statut: "en_attente", timestamp: Date.now() 
+        });
+        alert("✅ Travail envoyé !");
     } catch(e) { alert("Erreur d'envoi"); }
 }
 </script>
 </body>
-</html>
+                </html>
+                
