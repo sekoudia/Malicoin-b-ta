@@ -5,13 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Malicoin - Direction Générale</title>
     
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
+    <script src="https://gstatic.com"></script>
 
     <style>
         :root { --mali-green: #00913a; --mali-yellow: #fcd116; --mali-red: #ce1126; --bg: #121212; }
         body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        
+        /* Bouton Retour */
+        .nav-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .btn-back { text-decoration: none; color: #888; font-size: 14px; border: 1px solid #444; padding: 5px 10px; border-radius: 5px; }
+
         .header { text-align: center; padding: 20px; background: #1e1e1e; border-radius: 15px; border-bottom: 4px solid var(--mali-yellow); margin-bottom: 20px; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .stat-card { background: #252525; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #333; }
@@ -31,7 +37,6 @@
         .img-preview { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #444; }
         input { width: 100%; padding: 15px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
         
-        /* Style Historique Admin */
         .hist-box { max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 8px; font-size: 13px; }
         .hist-line { padding: 8px 0; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         .type-tag { font-size: 10px; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; }
@@ -44,8 +49,14 @@
 </head>
 <body>
 
+    <div class="nav-top">
+        <a href="index.html" class="btn-back">← Retour Accueil</a>
+        <small id="status" style="color: #666;">Connexion...</small>
+    </div>
+
     <div id="login-admin" class="header">
         <h1>🔐 Admin Malicoin</h1>
+        <p>Espace réservé à la Direction</p>
         <input type="password" id="admin-key" placeholder="Entrez le code secret">
         <button class="btn-ok" onclick="connexion()">Ouvrir le coffre-fort</button>
     </div>
@@ -90,12 +101,13 @@
     </div>
 
 <script>
+// Ta configuration Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAzhSslKnrPOsgmxtR8OTqv__QCR-5geSU",
-    authDomain: "malicoin.firebaseapp.com",
-    databaseURL: "https://malicoin-default-rtdb.firebaseio.com",
+    authDomain: "://firebaseapp.com",
+    databaseURL: "https://firebaseio.com",
     projectId: "malicoin",
-    storageBucket: "malicoin.appspot.com",
+    storageBucket: "://appspot.com",
     messagingSenderId: "728024400418",
     appId: "1:728024400418:web:45616567fc3aa9e02a007b"
 };
@@ -104,6 +116,12 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const MON_NUMERO_ADMIN = "+22396804164"; 
+
+// Vérification connexion Firebase
+db.ref('.info/connected').on('value', snap => {
+    document.getElementById('status').innerText = snap.val() ? "● Connecté" : "○ Hors-ligne";
+    document.getElementById('status').style.color = snap.val() ? "var(--mali-green)" : "var(--mali-red)";
+});
 
 function connexion() {
     const key = document.getElementById('admin-key').value;
@@ -115,57 +133,65 @@ function connexion() {
 }
 
 function initAdmin() {
+    // Solde Admin
     db.ref('users/' + MON_NUMERO_ADMIN + '/solde').on('value', s => {
         document.getElementById('mon-solde-admin').innerText = (s.val() || 0) + " MLC";
     });
 
-    // Charger l'Historique Global (Journal)
-    db.ref('transactions').on('value', snap => {
+    // Journal global
+    db.ref('transactions').limitToLast(20).on('value', snap => {
         let h = "";
         const data = snap.val();
         if(data) {
             Object.keys(data).reverse().forEach(id => {
                 const t = data[id];
-                const date = new Date(t.date).toLocaleDateString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                let tag = t.type === "EMISSION" ? "tag-emission" : "tag-achat";
+                const date = new Date(t.date).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                let tagClass = t.type === "EMISSION" ? "tag-emission" : "tag-achat";
                 h += `<div class="hist-line">
-                    <div>
-                        <span class="type-tag ${tag}">${t.type || 'TRANSFERT'}</span><br>
-                        ${t.destinataire}
-                    </div>
-                    <div style="text-align:right">
-                        <b>${t.montant} MLC</b><br>
-                        <span style="color:#666; font-size:10px;">${date}</span>
-                    </div>
+                    <div><span class="type-tag ${tagClass}">${t.type || 'TRF'}</span><br>${t.destinataire}</div>
+                    <div style="text-align:right"><b>${t.montant} MLC</b><br><small>${date}</small></div>
                 </div>`;
             });
         }
-        document.getElementById('admin-hist-list').innerHTML = h || "Aucune opération.";
+        document.getElementById('admin-hist-list').innerHTML = h || "Aucun mouvement.";
     });
 
-    // Recharges
-    db.ref('demandes_achats').orderByChild('statut').equalTo('en_attente').on('value', snap => {
+    // Liste Recharges
+    db.ref('demandes_achats').on('value', snap => {
         let h = ""; let count = 0;
         snap.forEach(d => {
-            count++; const val = d.val();
-            h += `<div class="card active"><p>👤 <b>${val.utilisateur}</b> : ${val.montant} MLC<br><small>Réf: ${val.reference || 'N/A'}</small></p>
-            <button class="btn-ok" onclick="validerAchat('${d.key}', '${val.utilisateur}', ${val.montant})">CFA REÇU ✅</button></div>`;
+            const val = d.val();
+            if(val.statut === 'en_attente') {
+                count++;
+                h += `<div class="card active">
+                    <p>👤 <b>${val.utilisateur}</b> : ${val.montant} MLC<br><small>Réf: ${val.reference || 'N/A'}</small></p>
+                    <button class="btn-ok" onclick="validerAchat('${d.key}', '${val.utilisateur}', ${val.montant})">CFA REÇU ✅</button>
+                </div>`;
+            }
         });
         document.getElementById('recharges-list').innerHTML = h || "Rien en attente.";
         document.getElementById('count-achats').innerText = count;
     });
 
-    // Travaux
-    db.ref('demandes_minage').orderByChild('statut').equalTo('en_attente').on('value', snap => {
+    // Liste Travaux
+    db.ref('demandes_minage').on('value', snap => {
         let h = ""; let count = 0;
         snap.forEach(d => {
-            count++; const val = d.val();
-            h += `<div class="card active"><p>👷 <b>${val.utilisateur}</b></p>
-            <img src="${val.photo_avant}" class="img-preview"><img src="${val.photo_apres}" class="img-preview">
-            <div class="btn-group"><button class="btn-ok" onclick="validerTravail('${d.key}', '${val.utilisateur}')">PAYER 500 MLC</button>
-            <button class="btn-no" onclick="rejeter('${d.key}')">REJETER</button></div></div>`;
+            const val = d.val();
+            if(val.statut === 'en_attente') {
+                count++;
+                h += `<div class="card active">
+                    <p>👷 <b>${val.utilisateur}</b></p>
+                    <img src="${val.photo_avant}" class="img-preview">
+                    <img src="${val.photo_apres}" class="img-preview">
+                    <div class="btn-group">
+                        <button class="btn-ok" onclick="validerTravail('${d.key}', '${val.utilisateur}')">PAYER 500</button>
+                        <button class="btn-no" onclick="rejeter('${d.key}')">X</button>
+                    </div>
+                </div>`;
+            }
         });
-        document.getElementById('travaux-list').innerHTML = h || "Pas de travaux.";
+        document.getElementById('travaux-list').innerHTML = h || "Aucun travail.";
         document.getElementById('count-travaux').innerText = count;
     });
 }
@@ -180,12 +206,12 @@ function actionMonnaie(type) {
             if (actuel >= montant) {
                 db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
                 db.ref('transactions').push({ expediteur: "ADMIN", destinataire: dest, montant: montant, type: "TRANSFERT ADMIN", date: Date.now() });
-                alert("Transfert réussi !");
+                alert("Envoyé !");
                 return actuel - montant;
             } else { alert("Solde insuffisant"); return; }
         });
     } else {
-        if(confirm("Confirmer l'émission de " + montant + " MLC ?")) {
+        if(confirm("Émettre " + montant + " MLC ?")) {
             db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
             db.ref('transactions').push({ expediteur: "SYSTEME", destinataire: dest, montant: montant, type: "EMISSION", date: Date.now() });
             alert("Émission réussie !");
@@ -208,8 +234,8 @@ function validerTravail(id, phone) {
     db.ref('demandes_minage/' + id).update({ statut: "termine" });
 }
 
-function rejeter(id) { db.ref('demandes_minage/' + id).remove(); }
+function rejeter(id) { if(confirm("Supprimer cette demande ?")) db.ref('demandes_minage/' + id).remove(); }
 </script>
 </body>
-                                         </html>
-  
+            </html>
+
