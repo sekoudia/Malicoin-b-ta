@@ -3,196 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Malicoin - Direction Générale</title>
+    <title>Malicoin Pro - Direction & Scan</title>
     
-    <!-- Firebase SDKs -->
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
-    <script src="https://gstatic.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        :root { --mali-green: #00913a; --mali-yellow: #fcd116; --mali-red: #ce1126; --bg: #121212; }
-        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
+        :root { --mali-green: #00913a; --mali-yellow: #fcd116; --mali-red: #ce1126; --bg: #0f0f0f; --card-bg: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
         
-        /* Bouton Retour */
-        .nav-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .btn-back { text-decoration: none; color: #888; font-size: 14px; border: 1px solid #444; padding: 5px 10px; border-radius: 5px; }
-
-        .header { text-align: center; padding: 20px; background: #1e1e1e; border-radius: 15px; border-bottom: 4px solid var(--mali-yellow); margin-bottom: 20px; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: #252525; padding: 15px; border-radius: 10px; text-align: center; border: 1px solid #333; }
-        .stat-card h2 { color: var(--mali-green); margin: 5px 0; }
+        .header { text-align: center; padding: 25px; background: var(--card-bg); border-radius: 20px; border-bottom: 5px solid var(--mali-yellow); margin-bottom: 20px; }
         
-        .section-title { color: var(--mali-yellow); font-size: 1.2em; margin: 20px 0 10px 0; display: flex; align-items: center; gap: 10px; }
-        .card { background: #1e1e1e; border-radius: 12px; padding: 15px; margin-bottom: 15px; border-left: 5px solid #444; }
-        .card.active { border-left-color: var(--mali-green); }
-        .card.special { border-left-color: var(--mali-yellow); background: #222; }
+        .card { background: var(--card-bg); border-radius: 15px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #444; }
+        .special { border-left-color: var(--mali-yellow); }
         
-        .btn-group { display: flex; gap: 8px; margin-top: 12px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        input, select { width: 100%; padding: 15px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        
+        button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
         .btn-ok { background: var(--mali-green); color: white; }
-        .btn-no { background: var(--mali-red); color: white; }
         .btn-gold { background: var(--mali-yellow); color: black; }
-        
-        .img-preview { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #444; }
-        input { width: 100%; padding: 15px; background: #252525; border: 1px solid #444; color: white; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box; }
-        
-        .hist-box { max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 8px; font-size: 13px; }
-        .hist-line { padding: 8px 0; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
-        .type-tag { font-size: 10px; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; }
-        .tag-achat { background: #004d40; color: #4db6ac; }
-        .tag-travail { background: #1a237e; color: #7986cb; }
-        .tag-emission { background: #4a148c; color: #ce93d8; }
+        .btn-scan { background: #3498db; color: white; }
 
+        /* Scanner style */
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; background: black; }
         .hidden { display: none; }
+        
+        .qr-wrapper { position: relative; display: inline-block; background: white; padding: 20px; border-radius: 25px; }
+        .qr-center-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 30px; background: white; border-radius: 50%; padding: 5px; border: 2px solid var(--mali-yellow); }
     </style>
 </head>
 <body>
 
-    <div class="nav-top">
-        <a href="index.html" class="btn-back">← Retour Accueil</a>
-        <small id="status" style="color: #666;">Connexion...</small>
-    </div>
-
     <div id="login-admin" class="header">
-        <h1>🔐 Admin Malicoin</h1>
-        <p>Espace réservé à la Direction</p>
-        <input type="password" id="admin-key" placeholder="Entrez le code secret">
-        <button class="btn-ok" onclick="connexion()">Ouvrir le coffre-fort</button>
+        <h1 style="color: var(--mali-yellow);">🏛️ DIRECTION</h1>
+        <input type="password" id="admin-key" placeholder="Code secret">
+        <button class="btn-gold" onclick="connexion()">Ouvrir la Trésorerie</button>
     </div>
 
     <div id="content-admin" class="hidden">
         <div class="header">
-            <p>Mon Portefeuille (Gains Frais) 👑</p>
-            <h1 id="mon-solde-admin" style="color: var(--mali-yellow);">0 MLC</h1>
+            <p>Solde Trésorerie (MLC)</p>
+            <h1 id="mon-solde-admin" style="color: var(--mali-yellow);">0</h1>
+        </div>
+
+        <div class="card">
+            <h3>📷 Scanner un Client</h3>
+            <div id="reader" class="hidden"></div>
+            <button id="btn-start-scan" class="btn-scan" onclick="demarrerScanner()">Activer la Caméra</button>
         </div>
 
         <div class="card special">
-            <h4>💸 Transférer ou Émettre</h4>
-            <input type="tel" id="admin-dest" placeholder="Numéro destinataire (+223...)">
+            <h3>💎 Transaction Manuelle</h3>
+            <input type="tel" id="admin-dest" placeholder="Numéro du destinataire">
             <input type="number" id="admin-montant" placeholder="Montant MLC">
-            <div class="btn-group">
-                <button class="btn-ok" onclick="actionMonnaie('transfert')">Envoyer mes Gains</button>
-                <button class="btn-gold" onclick="actionMonnaie('emission')">Émettre (Création)</button>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-ok" onclick="actionMonnaie('transfert')">Transférer</button>
+                <button class="btn-gold" onclick="actionMonnaie('emission')">Émettre</button>
+            </div>
+            
+            <button class="btn-scan" style="margin-top:10px" onclick="genererQRDesign()">Créer QR Code de Paiement</button>
+            
+            <div id="qr-result" class="hidden" style="text-align: center; margin-top: 15px;">
+                <div class="qr-wrapper">
+                    <div id="qr-container"></div>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h4>📜 Journal des Opérations</h4>
-            <div id="admin-hist-list" class="hist-box">Chargement du journal...</div>
+            <h3>📜 Dernières Opérations</h3>
+            <div id="admin-hist-list" style="font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
         </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <small>Achats CFA</small>
-                <h2 id="count-achats">0</h2>
-            </div>
-            <div class="stat-card">
-                <small>Travaux</small>
-                <h2 id="count-travaux">0</h2>
-            </div>
-        </div>
-
-        <div class="section-title">💳 Demandes de Recharge (CFA)</div>
-        <div id="recharges-list">Chargement...</div>
-
-        <div class="section-title">🏗️ Validation des Travaux</div>
-        <div id="travaux-list">Chargement...</div>
     </div>
 
 <script>
-// Ta configuration Firebase
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyAzhSslKnrPOsgmxtR8OTqv__QCR-5geSU",
-    authDomain: "://firebaseapp.com",
-    databaseURL: "https://firebaseio.com",
+    authDomain: "malicoin.firebaseapp.com",
+    databaseURL: "https://malicoin-default-rtdb.firebaseio.com",
     projectId: "malicoin",
-    storageBucket: "://appspot.com",
+    storageBucket: "malicoin.appspot.com",
     messagingSenderId: "728024400418",
     appId: "1:728024400418:web:45616567fc3aa9e02a007b"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
 const MON_NUMERO_ADMIN = "+22396804164"; 
 
-// Vérification connexion Firebase
-db.ref('.info/connected').on('value', snap => {
-    document.getElementById('status').innerText = snap.val() ? "● Connecté" : "○ Hors-ligne";
-    document.getElementById('status').style.color = snap.val() ? "var(--mali-green)" : "var(--mali-red)";
-});
-
+// --- LOGIQUE CONNEXION ---
 function connexion() {
-    const key = document.getElementById('admin-key').value;
-    if(key === "MALI2024") {
-        document.getElementById('login-admin').classList.add('hidden');
+    if(document.getElementById('admin-key').value === "MALI2024") {
+        document.getElementById('login-admin').style.display = 'none';
         document.getElementById('content-admin').classList.remove('hidden');
         initAdmin();
-    } else { alert("Accès refusé !"); }
+    } else { alert("Code incorrect"); }
 }
 
+// --- LOGIQUE SCANNER (LOCAL) ---
+let html5QrCode;
+
+function demarrerScanner() {
+    document.getElementById('reader').classList.remove('hidden');
+    document.getElementById('btn-start-scan').classList.add('hidden');
+    
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+            // Quand un QR est détecté
+            document.getElementById('admin-dest').value = decodedText;
+            alert("Client détecté : " + decodedText);
+            arreterScanner();
+        },
+        (errorMessage) => { /* On ignore les erreurs de scan continu */ }
+    ).catch(err => alert("Erreur caméra: " + err));
+}
+
+function arreterScanner() {
+    if(html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('reader').classList.add('hidden');
+            document.getElementById('btn-start-scan').classList.remove('hidden');
+        });
+    }
+}
+
+// --- LOGIQUE FINANCIÈRE ---
 function initAdmin() {
-    // Solde Admin
     db.ref('users/' + MON_NUMERO_ADMIN + '/solde').on('value', s => {
-        document.getElementById('mon-solde-admin').innerText = (s.val() || 0) + " MLC";
+        document.getElementById('mon-solde-admin').innerText = (s.val() || 0).toLocaleString() + " MLC";
     });
-
-    // Journal global
-    db.ref('transactions').limitToLast(20).on('value', snap => {
+    // Chargement historique simplifié
+    db.ref('transactions').limitToLast(10).on('value', snap => {
         let h = "";
-        const data = snap.val();
-        if(data) {
-            Object.keys(data).reverse().forEach(id => {
-                const t = data[id];
-                const date = new Date(t.date).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                let tagClass = t.type === "EMISSION" ? "tag-emission" : "tag-achat";
-                h += `<div class="hist-line">
-                    <div><span class="type-tag ${tagClass}">${t.type || 'TRF'}</span><br>${t.destinataire}</div>
-                    <div style="text-align:right"><b>${t.montant} MLC</b><br><small>${date}</small></div>
-                </div>`;
-            });
-        }
-        document.getElementById('admin-hist-list').innerHTML = h || "Aucun mouvement.";
-    });
-
-    // Liste Recharges
-    db.ref('demandes_achats').on('value', snap => {
-        let h = ""; let count = 0;
-        snap.forEach(d => {
-            const val = d.val();
-            if(val.statut === 'en_attente') {
-                count++;
-                h += `<div class="card active">
-                    <p>👤 <b>${val.utilisateur}</b> : ${val.montant} MLC<br><small>Réf: ${val.reference || 'N/A'}</small></p>
-                    <button class="btn-ok" onclick="validerAchat('${d.key}', '${val.utilisateur}', ${val.montant})">CFA REÇU ✅</button>
-                </div>`;
-            }
+        snap.forEach(c => {
+            let t = c.val();
+            h += `<div><b>${t.type}</b>: ${t.montant} MLC -> ${t.destinataire}</div><hr style="border:0.1px solid #333">`;
         });
-        document.getElementById('recharges-list').innerHTML = h || "Rien en attente.";
-        document.getElementById('count-achats').innerText = count;
-    });
-
-    // Liste Travaux
-    db.ref('demandes_minage').on('value', snap => {
-        let h = ""; let count = 0;
-        snap.forEach(d => {
-            const val = d.val();
-            if(val.statut === 'en_attente') {
-                count++;
-                h += `<div class="card active">
-                    <p>👷 <b>${val.utilisateur}</b></p>
-                    <img src="${val.photo_avant}" class="img-preview">
-                    <img src="${val.photo_apres}" class="img-preview">
-                    <div class="btn-group">
-                        <button class="btn-ok" onclick="validerTravail('${d.key}', '${val.utilisateur}')">PAYER 500</button>
-                        <button class="btn-no" onclick="rejeter('${d.key}')">X</button>
-                    </div>
-                </div>`;
-            }
-        });
-        document.getElementById('travaux-list').innerHTML = h || "Aucun travail.";
-        document.getElementById('count-travaux').innerText = count;
+        document.getElementById('admin-hist-list').innerHTML = h;
     });
 }
 
@@ -200,42 +154,35 @@ function actionMonnaie(type) {
     const dest = document.getElementById('admin-dest').value.trim();
     const montant = parseInt(document.getElementById('admin-montant').value);
     if(!dest || isNaN(montant)) return alert("Infos manquantes");
-
+    
     if(type === 'transfert') {
-        db.ref('users/' + MON_NUMERO_ADMIN + '/solde').transaction(actuel => {
-            if (actuel >= montant) {
-                db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
-                db.ref('transactions').push({ expediteur: "ADMIN", destinataire: dest, montant: montant, type: "TRANSFERT ADMIN", date: Date.now() });
-                alert("Envoyé !");
-                return actuel - montant;
-            } else { alert("Solde insuffisant"); return; }
+        db.ref('users/' + MON_NUMERO_ADMIN + '/solde').transaction(s => {
+            if(s >= montant) {
+                db.ref('users/' + dest + '/solde').transaction(sd => (sd || 0) + montant);
+                sauverTransaction(dest, montant, "TRANSFERT");
+                return s - montant;
+            }
+            alert("Solde insuffisant");
         });
     } else {
-        if(confirm("Émettre " + montant + " MLC ?")) {
-            db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
-            db.ref('transactions').push({ expediteur: "SYSTEME", destinataire: dest, montant: montant, type: "EMISSION", date: Date.now() });
-            alert("Émission réussie !");
-        }
+        db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
+        sauverTransaction(dest, montant, "EMISSION");
+        alert("Émis avec succès !");
     }
 }
 
-function validerAchat(id, phone, montant) {
-    db.ref('users/' + phone + '/solde').transaction(s => (s || 0) + montant);
-    db.ref('transactions').push({ expediteur: "VENTE CFA", destinataire: phone, montant: montant, type: "RECHARGE", date: Date.now() });
-    db.ref('demandes_achats/' + id).update({ statut: "termine" });
+function genererQRDesign() {
+    const num = document.getElementById('admin-dest').value;
+    if(!num) return alert("Entrez un numéro");
+    document.getElementById('qr-result').classList.remove('hidden');
+    document.getElementById('qr-container').innerHTML = "";
+    new QRCode(document.getElementById("qr-container"), { text: num, width: 150, height: 150 });
 }
 
-function validerTravail(id, phone) {
-    db.ref('users/' + phone).transaction(u => {
-        if(u) { u.solde = (u.solde || 0) + 500; u.jours_actifs = (u.jours_actifs || 0) + 1; }
-        return u;
-    });
-    db.ref('transactions').push({ expediteur: "MINAGE", destinataire: phone, montant: 500, type: "TRAVAIL", date: Date.now() });
-    db.ref('demandes_minage/' + id).update({ statut: "termine" });
+function sauverTransaction(d, m, t) {
+    db.ref('transactions').push({ destinataire: d, montant: m, type: t, date: Date.now() });
 }
-
-function rejeter(id) { if(confirm("Supprimer cette demande ?")) db.ref('demandes_minage/' + id).remove(); }
 </script>
 </body>
-            </html>
-
+                </html>
+            
