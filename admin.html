@@ -3,85 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Malicoin Pro - Direction & Scan</title>
-    
+    <title>Malicoin Pro - Sécurisé</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
     <style>
-        :root { --mali-green: #00913a; --mali-yellow: #fcd116; --mali-red: #ce1126; --bg: #0f0f0f; --card-bg: #1e1e1e; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; }
-        
-        .header { text-align: center; padding: 25px; background: var(--card-bg); border-radius: 20px; border-bottom: 5px solid var(--mali-yellow); margin-bottom: 20px; }
-        
-        .card { background: var(--card-bg); border-radius: 15px; padding: 20px; margin-bottom: 15px; border-left: 5px solid #444; }
-        .special { border-left-color: var(--mali-yellow); }
-        
-        input, select { width: 100%; padding: 15px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
-        
-        button { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
-        .btn-ok { background: var(--mali-green); color: white; }
-        .btn-gold { background: var(--mali-yellow); color: black; }
-        .btn-scan { background: #3498db; color: white; }
-
-        /* Scanner style */
-        #reader { width: 100%; border-radius: 15px; overflow: hidden; background: black; }
-        .hidden { display: none; }
-        
-        .qr-wrapper { position: relative; display: inline-block; background: white; padding: 20px; border-radius: 25px; }
-        .qr-center-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 30px; background: white; border-radius: 50%; padding: 5px; border: 2px solid var(--mali-yellow); }
+        :root { --green: #00913a; --yellow: #fcd116; --red: #ce1126; --dark: #000; --gray: #1a1a1a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: var(--gray); border-radius: 20px; padding: 20px; width: 100%; max-width: 400px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #333; }
+        .solde { font-size: 42px; color: var(--green); font-weight: bold; text-align: center; margin: 10px 0; }
+        input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 1px solid #444; background: #252525; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 5px; }
+        .btn-main { background: var(--green); color: white; }
+        .btn-admin { background: var(--yellow); color: black; }
+        .qr-container { text-align: center; background: white; padding: 12px; border: 3px solid var(--yellow); border-radius: 20px; margin-bottom: 10px; display: inline-block; }
+        .hidden { display: none !important; }
+        h4 { margin: 0 0 10px 0; color: var(--yellow); text-transform: uppercase; font-size: 14px; }
+        .hist-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; font-size: 13px; }
     </style>
 </head>
 <body>
 
-    <div id="login-admin" class="header">
-        <h1 style="color: var(--mali-yellow);">🏛️ DIRECTION</h1>
-        <input type="password" id="admin-key" placeholder="Code secret">
-        <button class="btn-gold" onclick="connexion()">Ouvrir la Trésorerie</button>
+    <div id="auth-box" class="card">
+        <h2 style="text-align:center; color: var(--yellow);">🇲🇱 MALICOIN</h2>
+        <input type="tel" id="phone" placeholder="+223 XX XX XX XX">
+        <div id="recaptcha-container"></div>
+        <button class="btn-main" onclick="envoyerSMS()">Se connecter</button>
+        <div id="code-box" class="hidden">
+            <input type="password" id="sms-code" placeholder="Code SMS ou Code Secret">
+            <button class="btn-admin" onclick="verifierAcces()">Entrer dans le système</button>
+        </div>
     </div>
 
-    <div id="content-admin" class="hidden">
-        <div class="header">
-            <p>Solde Trésorerie (MLC)</p>
-            <h1 id="mon-solde-admin" style="color: var(--mali-yellow);">0</h1>
+    <div id="app-box" class="hidden" style="width: 100%; max-width: 400px;">
+        
+        <div class="card" style="text-align:center;">
+            <div id="admin-badge" class="hidden" style="background:var(--yellow); color:black; border-radius:10px; padding:5px; font-weight:bold; margin-bottom:10px;">🏛️ DIRECTION GÉNÉRALE</div>
+            <div class="qr-container"><div id="qrcode"></div></div>
+            <p id="display-phone" style="color:gray;"></p>
+            <div class="solde"><span id="solde-val">0</span> MLC</div>
+        </div>
+
+        <div id="admin-tools" class="card hidden" style="border: 2px solid var(--yellow);">
+            <h4>💎 Trésorerie</h4>
+            <input type="tel" id="adm-target" placeholder="Numéro du Citoyen">
+            <input type="number" id="adm-qty" placeholder="Montant à créer">
+            <button class="btn-admin" onclick="emettreMonnaie()">ÉMETTRE MLC</button>
+            <p style="font-size:12px; color:gray; margin-top:10px;">Commissions cumulées : <b id="revenus-total" style="color:var(--yellow)">0</b> MLC</p>
         </div>
 
         <div class="card">
-            <h3>📷 Scanner un Client</h3>
-            <div id="reader" class="hidden"></div>
-            <button id="btn-start-scan" class="btn-scan" onclick="demarrerScanner()">Activer la Caméra</button>
-        </div>
-
-        <div class="card special">
-            <h3>💎 Transaction Manuelle</h3>
-            <input type="tel" id="admin-dest" placeholder="Numéro du destinataire">
-            <input type="number" id="admin-montant" placeholder="Montant MLC">
-            
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-ok" onclick="actionMonnaie('transfert')">Transférer</button>
-                <button class="btn-gold" onclick="actionMonnaie('emission')">Émettre</button>
-            </div>
-            
-            <button class="btn-scan" style="margin-top:10px" onclick="genererQRDesign()">Créer QR Code de Paiement</button>
-            
-            <div id="qr-result" class="hidden" style="text-align: center; margin-top: 15px;">
-                <div class="qr-wrapper">
-                    <div id="qr-container"></div>
-                </div>
-            </div>
+            <h4>💸 Envoi Rapide</h4>
+            <input type="tel" id="dest" placeholder="Numéro Destinataire">
+            <input type="number" id="montant" placeholder="Montant à envoyer">
+            <button class="btn-main" onclick="transferer()">🚀 Envoyer maintenant</button>
+            <p style="text-align:center; font-size:11px; color:var(--red);">Frais prélevés : 50 MLC</p>
         </div>
 
         <div class="card">
-            <h3>📜 Dernières Opérations</h3>
-            <div id="admin-hist-list" style="font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
+            <h4>📜 Dernières Activités</h4>
+            <div id="historique-list"></div>
         </div>
     </div>
 
 <script>
-// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyAzhSslKnrPOsgmxtR8OTqv__QCR-5geSU",
     authDomain: "malicoin.firebaseapp.com",
@@ -93,96 +79,106 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const MON_NUMERO_ADMIN = "+22396804164"; 
+const auth = firebase.auth();
+let confirmRes, isAdmin = false;
+const MON_NUMERO_COMMISSION = "+22396804164"; 
 
-// --- LOGIQUE CONNEXION ---
-function connexion() {
-    if(document.getElementById('admin-key').value === "MALI2024") {
-        document.getElementById('login-admin').style.display = 'none';
-        document.getElementById('content-admin').classList.remove('hidden');
-        initAdmin();
-    } else { alert("Code incorrect"); }
+window.onload = () => { window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {'size': 'invisible'}); };
+
+function envoyerSMS() {
+    const p = document.getElementById('phone').value;
+    auth.signInWithPhoneNumber(p, window.recaptchaVerifier).then(res => {
+        confirmRes = res; document.getElementById('code-box').classList.remove('hidden');
+    }).catch(e => alert("Erreur : Vérifiez le format du numéro"));
 }
 
-// --- LOGIQUE SCANNER (LOCAL) ---
-let html5QrCode;
+function verifierAcces() {
+    const code = document.getElementById('sms-code').value;
+    const phone = document.getElementById('phone').value;
+    if(code === "MALI2024") { isAdmin = true; startApp(phone); }
+    else { confirmRes.confirm(code).then(res => startApp(res.user.phoneNumber)).catch(() => alert("Code incorrect")); }
+}
 
-function demarrerScanner() {
-    document.getElementById('reader').classList.remove('hidden');
-    document.getElementById('btn-start-scan').classList.add('hidden');
+function startApp(phone) {
+    document.getElementById('auth-box').classList.add('hidden');
+    document.getElementById('app-box').classList.remove('hidden');
+    document.getElementById('display-phone').innerText = phone;
     
-    html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-            // Quand un QR est détecté
-            document.getElementById('admin-dest').value = decodedText;
-            alert("Client détecté : " + decodedText);
-            arreterScanner();
-        },
-        (errorMessage) => { /* On ignore les erreurs de scan continu */ }
-    ).catch(err => alert("Erreur caméra: " + err));
-}
-
-function arreterScanner() {
-    if(html5QrCode) {
-        html5QrCode.stop().then(() => {
-            document.getElementById('reader').classList.add('hidden');
-            document.getElementById('btn-start-scan').classList.remove('hidden');
-        });
+    if(isAdmin) {
+        document.getElementById('admin-tools').classList.remove('hidden');
+        document.getElementById('admin-badge').classList.remove('hidden');
     }
+
+    db.ref('users/' + phone).on('value', s => {
+        if(!s.exists()) db.ref('users/' + phone).set({solde: 500});
+        else document.getElementById('solde-val').innerText = s.val().solde;
+    });
+
+    db.ref('admin/frais').on('value', s => { document.getElementById('revenus-total').innerText = s.val() || 0; });
+
+    document.getElementById("qrcode").innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), { text: phone, width: 150, height: 150 });
+    chargerHistorique(phone);
 }
 
-// --- LOGIQUE FINANCIÈRE ---
-function initAdmin() {
-    db.ref('users/' + MON_NUMERO_ADMIN + '/solde').on('value', s => {
-        document.getElementById('mon-solde-admin').innerText = (s.val() || 0).toLocaleString() + " MLC";
+// TRANSACTION SÉCURISÉE AVEC COMMISSION
+function transferer() {
+    const to = document.getElementById('dest').value;
+    const amt = parseInt(document.getElementById('montant').value);
+    const me = document.getElementById('display-phone').innerText;
+    const frais = 50;
+
+    if(!to || isNaN(amt) || amt <= 0) return alert("Données invalides");
+    if(to === me) return alert("Action impossible");
+
+    db.ref('users/' + me + '/solde').transaction(s => {
+        if(s >= (amt + frais)) {
+            // Crédit Destinataire
+            db.ref('users/' + to + '/solde').transaction(s2 => (s2 || 0) + amt);
+            // Crédit Admin (Toi)
+            db.ref('users/' + MON_NUMERO_COMMISSION + '/solde').transaction(sAdm => (sAdm || 0) + frais);
+            // Compteur
+            db.ref('admin/frais').transaction(f => (f || 0) + frais);
+            // Log
+            db.ref('transactions').push({from: me, to: to, amt: amt, date: Date.now(), type: "TRANSFERT"});
+            return s - (amt + frais);
+        } else {
+            alert("Solde insuffisant (Frais de 50 MLC requis)");
+            return;
+        }
+    }).then(result => {
+        if(result.committed) {
+            alert("✅ Envoi réussi ! 50 MLC de commission versés.");
+            document.getElementById('dest').value = "";
+            document.getElementById('montant').value = "";
+        }
     });
-    // Chargement historique simplifié
+}
+
+function emettreMonnaie() {
+    const t = document.getElementById('adm-target').value;
+    const q = parseInt(document.getElementById('adm-qty').value);
+    if(!t || isNaN(q)) return alert("Vérifiez les champs");
+    db.ref('users/' + t + '/solde').transaction(c => (c || 0) + q);
+    db.ref('transactions').push({from: "TRÉSOR", to: t, amt: q, date: Date.now(), type: "ÉMISSION"});
+    alert("💸 MLC Créés pour " + t);
+}
+
+function chargerHistorique(phone) {
     db.ref('transactions').limitToLast(10).on('value', snap => {
-        let h = "";
+        const list = document.getElementById('historique-list');
+        list.innerHTML = "";
         snap.forEach(c => {
-            let t = c.val();
-            h += `<div><b>${t.type}</b>: ${t.montant} MLC -> ${t.destinataire}</div><hr style="border:0.1px solid #333">`;
-        });
-        document.getElementById('admin-hist-list').innerHTML = h;
-    });
-}
-
-function actionMonnaie(type) {
-    const dest = document.getElementById('admin-dest').value.trim();
-    const montant = parseInt(document.getElementById('admin-montant').value);
-    if(!dest || isNaN(montant)) return alert("Infos manquantes");
-    
-    if(type === 'transfert') {
-        db.ref('users/' + MON_NUMERO_ADMIN + '/solde').transaction(s => {
-            if(s >= montant) {
-                db.ref('users/' + dest + '/solde').transaction(sd => (sd || 0) + montant);
-                sauverTransaction(dest, montant, "TRANSFERT");
-                return s - montant;
+            const tx = c.val();
+            if(tx.from === phone || tx.to === phone) {
+                const color = tx.from === phone ? "var(--red)" : "var(--green)";
+                const sign = tx.from === phone ? "-" : "+";
+                list.innerHTML += `<div class="hist-item"><span style="color:${color}">${sign}${tx.amt} MLC</span> <small>${tx.type}</small></div>`;
             }
-            alert("Solde insuffisant");
         });
-    } else {
-        db.ref('users/' + dest + '/solde').transaction(s => (s || 0) + montant);
-        sauverTransaction(dest, montant, "EMISSION");
-        alert("Émis avec succès !");
-    }
-}
-
-function genererQRDesign() {
-    const num = document.getElementById('admin-dest').value;
-    if(!num) return alert("Entrez un numéro");
-    document.getElementById('qr-result').classList.remove('hidden');
-    document.getElementById('qr-container').innerHTML = "";
-    new QRCode(document.getElementById("qr-container"), { text: num, width: 150, height: 150 });
-}
-
-function sauverTransaction(d, m, t) {
-    db.ref('transactions').push({ destinataire: d, montant: m, type: t, date: Date.now() });
+    });
 }
 </script>
 </body>
-                </html>
-            
+        </html>
+        
